@@ -31,7 +31,6 @@ static int Rotate(int px, int py, int rotation)
 bool DoesPieceFit(int nTetromino, int nRotation, int nPosX, int nPosY)
 {
 	for (int px = 0; px < 4; ++px)
-	{
 		for (int py = 0; py < 4; ++py)
 		{
 			// Get index into piece
@@ -40,6 +39,7 @@ bool DoesPieceFit(int nTetromino, int nRotation, int nPosX, int nPosY)
 			// Get index into field
 			int fi = (nPosY + py) * nFieldWidth + (nPosX + px);
 
+			// Out of bounds can succeed as long as the vertical piece can have cells that lie outside the boundary
 			if (nPosX + px >= 0 && nPosX + px < nFieldWidth)
 			{
 				if (nPosY + py >= 0 && nPosY + py < nFieldHeight)
@@ -50,7 +50,6 @@ bool DoesPieceFit(int nTetromino, int nRotation, int nPosX, int nPosY)
 				}
 			}
 		}
-	}
 	return true;
 }
 
@@ -74,11 +73,16 @@ int main()
 			pField[y * nFieldWidth + x] = (x == 0 || x == nFieldWidth - 1 || y == nFieldHeight - 1) ? 9 : 0;
 
 	// Create Screen Buffer
-	auto screen = new wchar_t[nScreenWidth * nScreenHeight];
+	wchar_t* screen = new wchar_t[nScreenWidth * nScreenHeight];
 	for (int i = 0; i < nScreenWidth * nScreenHeight; i++) screen[i] = L' ';
 	HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr);
-	COORD bufferSize = { nScreenWidth, nScreenHeight };
-	SMALL_RECT windowSize = { 0, 0, nScreenWidth - 1, nScreenHeight - 1 };
+	COORD bufferSize = { static_cast<SHORT>(nScreenWidth), static_cast<SHORT>(nScreenHeight) };
+	SMALL_RECT windowSize = {
+		0,
+		0,
+		static_cast<SHORT>(nScreenWidth - 1),
+		static_cast<SHORT>(nScreenHeight - 1)
+	};
 	SetConsoleActiveScreenBuffer(hConsole);
 	SetConsoleScreenBufferSize(hConsole, bufferSize);
 	SetConsoleWindowInfo(hConsole, TRUE, &windowSize);
@@ -169,7 +173,7 @@ int main()
 					}
 
 				nScore += 25;
-				if (!vLines.empty())	nScore += (1 << vLines.size()) * 100;
+				if (!vLines.empty()) nScore += (1 << vLines.size()) * 100;
 
 				// Choose next piece
 				nCurrentX = nFieldWidth / 2;
@@ -180,11 +184,7 @@ int main()
 				// If piece does not fit at all
 				bGameOver = !DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY);
 			}
-
-			nSpeedCount = 0;
 		}
-
-
 
 
 		// RENDER OUTPUT ======================
@@ -200,9 +200,33 @@ int main()
 				if (tetromino[nCurrentPiece][Rotate(px, py, nCurrentRotation)] != L'.')
 					screen[(nCurrentY + py + 2) * nScreenWidth + (nCurrentX + px + 2)] = nCurrentPiece + 65;
 
+		// Draw Score
+		swprintf_s(&screen[2 * nScreenWidth + nFieldWidth + 6], 16, L"SCORE: %8d", nScore);
+
+		// Animate Line Completion
+		if (!vLines.empty())
+		{
+			// Display Frame (cheekily to draw lines)
+			WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
+			std::this_thread::sleep_for(std::chrono::milliseconds(400)); // Delay a bit
+
+			for (auto& v : vLines)
+				for (int px = 1; px < nFieldWidth - 1; px++)
+				{
+					for (int py = v; py > 0; py--)
+						pField[py * nFieldWidth + px] = pField[(py - 1) * nFieldWidth + px];
+					pField[px] = 0;
+				}
+
+			vLines.clear();
+		}
+
 		// Display Frame
 		WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
 	}
 
+	CloseHandle(hConsole);
+	cout << "Game Over!! Score:" << nScore << '\n';
+	system("pause");
 	return 0;
 }
