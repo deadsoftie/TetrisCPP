@@ -1,8 +1,6 @@
 #ifndef TETROMINO_MANAGER_H
 #define TETROMINO_MANAGER_H
 
-#include <cstddef>
-
 template<typename StringType, size_t N>
 class TetrominoManager {
 private:

@@ -1,8 +1,6 @@
 #ifndef BUFFER_H
 #define BUFFER_H
 
-#include <cstddef>
-
 template<typename T>
 class Buffer {
 private:
