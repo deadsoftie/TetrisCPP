@@ -131,6 +131,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Buffer.h" />
+    <ClInclude Include="FieldBuffer.h" />
+    <ClInclude Include="GraphicsBuffer.h" />
+    <ClInclude Include="ScreenBuffer.h" />
     <ClInclude Include="TetrominoManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

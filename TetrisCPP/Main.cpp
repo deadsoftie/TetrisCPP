@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include "Buffer.h"
+#include "FieldBuffer.h"
+#include "ScreenBuffer.h"
 #include "TetrominoManager.h"
 
 using namespace std;
@@ -28,26 +30,20 @@ static int Rotate(int px, int py, int rotation)
 	}
 }
 
-bool DoesPieceFit(TetrominoManager<wstring, 7>& tetromino, Buffer<unsigned char>& pField,
+bool DoesPieceFit(TetrominoManager<wstring, 7>& tetromino, FieldBuffer& pField,
 	int nTetromino, int nRotation, int nPosX, int nPosY)
 {
 	for (int px = 0; px < 4; ++px)
 		for (int py = 0; py < 4; ++py)
 		{
-			// Get index into piece
 			int pi = Rotate(px, py, nRotation);
 
-			// Get index into field
-			int fi = (nPosY + py) * nFieldWidth + (nPosX + px);
-
-			// Out of bounds can succeed as long as the vertical piece can have cells that lie outside the boundary
 			if (nPosX + px >= 0 && nPosX + px < nFieldWidth)
 			{
 				if (nPosY + py >= 0 && nPosY + py < nFieldHeight)
 				{
-					// In Bounds so do collision check
-					if (tetromino[nTetromino][pi] != L'.' && pField[fi] != 0)
-						return false; // fail on first hit
+					if (tetromino[nTetromino][pi] != L'.' && pField.isCellOccupied(nPosX + px, nPosY + py))
+						return false;
 				}
 			}
 		}
@@ -68,16 +64,9 @@ int main()
 	tetromino[6].append(L"..X...X..XX.....");
 
 	// Create play field buffer
-	Buffer<unsigned char> pField(nFieldWidth * nFieldHeight);
+	FieldBuffer pField(nFieldWidth, nFieldHeight);
+	ScreenBuffer<wchar_t> screen(nScreenWidth, nScreenHeight);
 
-	// Board Boundary
-	for (int x = 0; x < nFieldWidth; x++)
-		for (int y = 0; y < nFieldHeight; y++)
-			pField[y * nFieldWidth + x] = (x == 0 || x == nFieldWidth - 1 || y == nFieldHeight - 1) ? 9 : 0;
-
-	// Create Screen Buffer
-	Buffer<wchar_t> screen(nScreenWidth * nScreenHeight);
-	for (int i = 0; i < nScreenWidth * nScreenHeight; i++) screen[i] = L' ';
 	HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr);
 	COORD bufferSize = { static_cast<SHORT>(nScreenWidth), static_cast<SHORT>(nScreenHeight) };
 	SMALL_RECT windowSize = {
@@ -162,24 +151,20 @@ int main()
 				for (int px = 0; px < 4; px++)
 					for (int py = 0; py < 4; py++)
 						if (tetromino[nCurrentPiece][Rotate(px, py, nCurrentRotation)] != L'.')
-							pField[(nCurrentY + py) * nFieldWidth + (nCurrentX + px)] = nCurrentPiece + 1;
+							pField.setCellValue(nCurrentX + px, nCurrentY + py, nCurrentPiece + 1);
 
 				// Do we have full sync lines
 				for (int py = 0; py < 4; py++)
+				{
 					if (nCurrentY + py < nFieldHeight - 1)
 					{
-						bool bLine = true;
-						for (int px = 1; px < nFieldWidth - 1; px++)
-							bLine &= (pField[(nCurrentY + py) * nFieldWidth + px]) != 0;
-
-						if (bLine)
+						if (pField.isLineComplete(nCurrentY + py))
 						{
-							// Remove Line, set to =
-							for (int px = 1; px < nFieldWidth - 1; px++)
-								pField[(nCurrentY + py) * nFieldWidth + px] = 8;
+							pField.clearLine(nCurrentY + py);
 							vLines.push_back(nCurrentY + py);
 						}
 					}
+				}
 
 				nScore += 25;
 				if (!vLines.empty()) nScore += (1 << vLines.size()) * 100;
@@ -201,13 +186,13 @@ int main()
 		// Draw Field
 		for (int x = 0; x < nFieldWidth; x++)
 			for (int y = 0; y < nFieldHeight; y++)
-				screen[(y + 2) * nScreenWidth + (x + 2)] = L" ABCDEFG=#"[pField[y * nFieldWidth + x]];
+				screen.drawCharacter(x + 2, y + 2, L" ABCDEFG=#"[pField.getCellValue(x, y)]);
 
 		// Draw Current Piece
 		for (int px = 0; px < 4; px++)
 			for (int py = 0; py < 4; py++)
 				if (tetromino[nCurrentPiece][Rotate(px, py, nCurrentRotation)] != L'.')
-					screen[(nCurrentY + py + 2) * nScreenWidth + (nCurrentX + px + 2)] = nCurrentPiece + 65;
+					screen.drawCharacter(nCurrentX + px + 2, nCurrentY + py + 2, nCurrentPiece + 65);
 
 		// Draw Score
 		swprintf_s(&screen[2 * nScreenWidth + nFieldWidth + 6], 16, L"SCORE: %8d", nScore);
@@ -215,17 +200,11 @@ int main()
 		// Animate Line Completion
 		if (!vLines.empty())
 		{
-			// Display Frame (cheekily to draw lines)
 			WriteConsoleOutputCharacter(hConsole, screen.get(), nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
-			std::this_thread::sleep_for(std::chrono::milliseconds(400)); // Delay a bit
+			std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
 			for (auto& v : vLines)
-				for (int px = 1; px < nFieldWidth - 1; px++)
-				{
-					for (int py = v; py > 0; py--)
-						pField[py * nFieldWidth + px] = pField[(py - 1) * nFieldWidth + px];
-					pField[px] = 0;
-				}
+				pField.collapseLine(v);
 
 			vLines.clear();
 		}

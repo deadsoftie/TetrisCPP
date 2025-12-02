@@ -3,7 +3,7 @@
 
 template<typename T>
 class Buffer {
-private:
+protected:
     T* data;
     size_t size;
 
