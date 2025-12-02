@@ -34,7 +34,6 @@ public:
     size_t getCount() const;
 };
 
-// Template implementation must be in header file
 template<typename StringType, size_t N>
 TetrominoManager<StringType, N>::TetrominoManager() : count(N), pieces(new StringType[N]) {}
 

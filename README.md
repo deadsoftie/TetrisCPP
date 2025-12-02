@@ -2,7 +2,7 @@
 
 ## Core Design Overview
 
-This implementation focuses on using templates and resoruce management using the Big 4. The templates are used for reusability and type safety.
+This implementation focuses on using templates and resource management using the Big 4. The templates are used for reusability and type safety.
 
 `Buffer<T>` manages any type of 1D array buffer (e.g., the game field or the screen), handling memory allocation, copying, and cleanup generically and safely.
 
