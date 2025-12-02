@@ -23,7 +23,7 @@ static int Rotate(int px, int py, int rotation)
 	case 0: return py * 4 + px; // 0 degrees: i = (0,0) + y * w + x
 	case 1: return 12 + py - (px * 4); // 90 degrees: i = (0,0) + y - (x * w)
 	case 2: return 15 - (py * 4) - px; // 180 degrees: i = (0,0) - (y * w) - x 
-	case 3: return 3 + py + (px * 4); // 270 degrees: i = (0,0) + y + (x * w)
+	case 3: return 3 - py + (px * 4); // 270 degrees: i = (0,0) + y + (x * w)
 	default: return py * 4 + px; // Default 0 degrees case
 	}
 }
@@ -144,6 +144,12 @@ int main()
 
 		if (bForceDown)
 		{
+			// Increase the difficulty of the game
+			nSpeedCount = 0;
+			nPieceCount++;
+			if (nPieceCount % 50 == 0)
+				if (nSpeed >= 10) nSpeed--;
+
 			// Can the piece move down?
 			if (DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
 				nCurrentY++; // Just do it!!!
