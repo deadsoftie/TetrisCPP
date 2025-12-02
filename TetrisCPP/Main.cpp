@@ -1,16 +1,16 @@
-#include<iostream>
-#include<Windows.h>
-#include<thread>
-#include<vector>
+#include <iostream>
+#include <Windows.h>
+#include <thread>
+#include <vector>
+#include <string>
+#include "Buffer.h"
+#include "TetrominoManager.h"
 
 using namespace std;
-
-wstring tetromino[7];
 
 // Tetris field size
 int nFieldWidth = 12;
 int nFieldHeight = 18;
-unsigned char* pField = nullptr;
 
 // Console screen size
 int nScreenWidth = 80;
@@ -22,13 +22,14 @@ static int Rotate(int px, int py, int rotation)
 	{
 	case 0: return py * 4 + px; // 0 degrees: i = (0,0) + y * w + x
 	case 1: return 12 + py - (px * 4); // 90 degrees: i = (0,0) + y - (x * w)
-	case 2: return 15 - (py * 4) - px; // 180 degrees: i = (0,0) - (y * w) - x 
+	case 2: return 15 - (py * 4) - px; // 180 degrees: i = (0,0) - (y * w) - x
 	case 3: return 3 - py + (px * 4); // 270 degrees: i = (0,0) + y + (x * w)
 	default: return py * 4 + px; // Default 0 degrees case
 	}
 }
 
-bool DoesPieceFit(int nTetromino, int nRotation, int nPosX, int nPosY)
+bool DoesPieceFit(TetrominoManager<wstring, 7>& tetromino, Buffer<unsigned char>& pField,
+	int nTetromino, int nRotation, int nPosX, int nPosY)
 {
 	for (int px = 0; px < 4; ++px)
 		for (int py = 0; py < 4; ++py)
@@ -55,6 +56,8 @@ bool DoesPieceFit(int nTetromino, int nRotation, int nPosX, int nPosY)
 
 int main()
 {
+	TetrominoManager<wstring, 7> tetromino;
+
 	// Tetrominos 4x4
 	tetromino[0].append(L"..X...X...X...X.");
 	tetromino[1].append(L"..X..XX...X.....");
@@ -65,7 +68,7 @@ int main()
 	tetromino[6].append(L"..X...X..XX.....");
 
 	// Create play field buffer
-	pField = new unsigned char[nFieldWidth * nFieldHeight];
+	Buffer<unsigned char> pField(nFieldWidth * nFieldHeight);
 
 	// Board Boundary
 	for (int x = 0; x < nFieldWidth; x++)
@@ -73,7 +76,7 @@ int main()
 			pField[y * nFieldWidth + x] = (x == 0 || x == nFieldWidth - 1 || y == nFieldHeight - 1) ? 9 : 0;
 
 	// Create Screen Buffer
-	wchar_t* screen = new wchar_t[nScreenWidth * nScreenHeight];
+	Buffer<wchar_t> screen(nScreenWidth * nScreenHeight);
 	for (int i = 0; i < nScreenWidth * nScreenHeight; i++) screen[i] = L' ';
 	HANDLE hConsole = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr);
 	COORD bufferSize = { static_cast<SHORT>(nScreenWidth), static_cast<SHORT>(nScreenHeight) };
@@ -127,16 +130,16 @@ int main()
 		// Handle player movement
 
 		// Right key
-		nCurrentX += (bKey[0] && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX + 1, nCurrentY)) ? 1 : 0;
+		nCurrentX += (bKey[0] && DoesPieceFit(tetromino, pField, nCurrentPiece, nCurrentRotation, nCurrentX + 1, nCurrentY)) ? 1 : 0;
 		// Left key
-		nCurrentX -= (bKey[1] && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX - 1, nCurrentY)) ? 1 : 0;
+		nCurrentX -= (bKey[1] && DoesPieceFit(tetromino, pField, nCurrentPiece, nCurrentRotation, nCurrentX - 1, nCurrentY)) ? 1 : 0;
 		// Down key
-		nCurrentY += (bKey[2] && DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1)) ? 1 : 0;
+		nCurrentY += (bKey[2] && DoesPieceFit(tetromino, pField, nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1)) ? 1 : 0;
 
 		// Rotate, but latch to stop wild spinning
 		if (bKey[3])
 		{
-			nCurrentRotation += (bRotateHold && DoesPieceFit(nCurrentPiece, nCurrentRotation + 1, nCurrentX, nCurrentY)) ? 1 : 0;
+			nCurrentRotation += (bRotateHold && DoesPieceFit(tetromino, pField, nCurrentPiece, nCurrentRotation + 1, nCurrentX, nCurrentY)) ? 1 : 0;
 			bRotateHold = false;
 		}
 		else
@@ -151,7 +154,7 @@ int main()
 				if (nSpeed >= 10) nSpeed--;
 
 			// Can the piece move down?
-			if (DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
+			if (DoesPieceFit(tetromino, pField, nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
 				nCurrentY++; // Just do it!!!
 			else
 			{
@@ -188,7 +191,7 @@ int main()
 				nCurrentPiece = rand() % 7;
 
 				// If piece does not fit at all
-				bGameOver = !DoesPieceFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY);
+				bGameOver = !DoesPieceFit(tetromino, pField, nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY);
 			}
 		}
 
@@ -213,7 +216,7 @@ int main()
 		if (!vLines.empty())
 		{
 			// Display Frame (cheekily to draw lines)
-			WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
+			WriteConsoleOutputCharacter(hConsole, screen.get(), nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
 			std::this_thread::sleep_for(std::chrono::milliseconds(400)); // Delay a bit
 
 			for (auto& v : vLines)
@@ -228,7 +231,7 @@ int main()
 		}
 
 		// Display Frame
-		WriteConsoleOutputCharacter(hConsole, screen, nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
+		WriteConsoleOutputCharacter(hConsole, screen.get(), nScreenWidth * nScreenHeight, { 0,0 }, &dwBytesWritten);
 	}
 
 	CloseHandle(hConsole);
