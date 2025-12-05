@@ -1,5 +1,11 @@
 # Templatized Tetris - C++
 
+## Controls
+
+- Basic Movement - Arrow Keys
+- Increase Speed - Down Arrow Key
+- Rotate the Piece - Z
+
 ## Core Design Overview
 
 This implementation focuses on using templates and resource management using the Big 5. The templates are used for reusability and type safety.
