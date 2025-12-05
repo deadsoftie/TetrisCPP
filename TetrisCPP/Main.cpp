@@ -11,12 +11,12 @@
 using namespace std;
 
 // Tetris field size
-int nFieldWidth = 12;
-int nFieldHeight = 18;
+static int nFieldWidth = 12;
+static int nFieldHeight = 18;
 
 // Console screen size
-int nScreenWidth = 80;
-int nScreenHeight = 30;
+static int nScreenWidth = 80;
+static int nScreenHeight = 30;
 
 static int Rotate(int px, int py, int rotation)
 {
@@ -90,7 +90,6 @@ int main()
 	int nSpeed = 20;
 	int nSpeedCount = 0;
 
-	bool bForceDown = false;
 	bool bRotateHold = true;
 
 	int nPieceCount = 0;
@@ -107,7 +106,7 @@ int main()
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(50)); // This will be one game tick
 		nSpeedCount++;
-		bForceDown = (nSpeedCount == nSpeed);
+		bool bForceDown = (nSpeedCount == nSpeed);
 
 		// INPUT ==============================
 
